@@ -59,11 +59,8 @@ export default function Dashboard() {
   const calculatePnL = (trade: Trade) => {
     if (trade.status !== 'open') return trade.pnl || 0;
     
-    // Support symbols with and without /USDT
-    const symbolKey = trade.symbol.includes('/') ? trade.symbol : `${trade.symbol}/USDT`;
-    const currentPrice = livePrices[symbolKey] || livePrices[trade.symbol];
-    
-    if (!currentPrice) return 0;
+    const currentPrice = livePrices[trade.symbol];
+    if (!currentPrice) return 0; // Return 0 until real data arrives, no more mocking!
 
     const entry = (trade.entry_low + trade.entry_high) / 2;
     const diff = trade.direction === 'LONG' ? currentPrice - entry : entry - currentPrice;
