@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, ISeriesApi, CandlestickData, Time } from 'lightweight-charts';
+import { createChart, ColorType, ISeriesApi, CandlestickData, Time, CandlestickSeries } from 'lightweight-charts';
 import { Trade } from '@/types';
 
 interface ChartProps {
@@ -30,7 +30,7 @@ export default function TradingViewChart({ trade, livePrice }: ChartProps) {
       height: chartContainerRef.current.clientHeight,
     });
 
-    const series = chart.addCandlestickSeries({
+    const series = chart.addSeries(CandlestickSeries, {
       upColor: '#00ff88',
       downColor: '#ff3a5c',
       borderVisible: false,
