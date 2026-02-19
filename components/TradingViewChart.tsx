@@ -51,6 +51,7 @@ export default function TradingViewChart({ trade, livePrice }: ChartProps) {
         color: '#ffd54f',
         shape: 'arrowUp',
         text: 'ENTRY',
+        size: 1,
       },
     ]);
 
