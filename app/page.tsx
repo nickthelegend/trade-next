@@ -60,6 +60,8 @@ export default function Dashboard() {
   const calculatePnL = (trade: Trade) => {
     if (trade.status !== 'open') return trade.pnl || 0;
     const currentPrice = livePrices[trade.symbol];
+    
+    // DEBUG: Only return 0 if we truly don't have a price yet
     if (!currentPrice) return 0;
 
     const entry = (trade.entry_low + trade.entry_high) / 2;
