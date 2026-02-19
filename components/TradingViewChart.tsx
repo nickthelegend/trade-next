@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, ISeriesApi, CandlestickData, Time, CandlestickSeries } from 'lightweight-charts';
+import { createChart, ColorType, ISeriesApi, CandlestickData, Time, CandlestickSeries, createSeriesMarkers } from 'lightweight-charts';
 import { Trade } from '@/types';
 
 interface ChartProps {
@@ -42,9 +42,9 @@ export default function TradingViewChart({ trade, livePrice }: ChartProps) {
     const data = generateMockData(trade);
     series.setData(data);
 
-    // Add Markers (Entry)
+    // Add Markers (v5 syntax: createSeriesMarkers primitive)
     const entryTime = Math.floor(new Date(trade.created_at).getTime() / 1000) as Time;
-    series.setMarkers([
+    createSeriesMarkers(series, [
       {
         time: entryTime,
         position: 'inBar',
