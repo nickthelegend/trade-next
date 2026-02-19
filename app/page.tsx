@@ -6,6 +6,7 @@ import { Trade } from '@/types';
 import TradingViewChart from '@/components/TradingViewChart';
 import { useLivePrices } from '@/hooks/useLivePrices';
 import { LayoutGrid, Briefcase, History, Plus, RefreshCcw, TrendingUp, TrendingDown, X } from 'lucide-react';
+import Link from 'next/link';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -85,8 +86,12 @@ export default function Dashboard() {
         </div>
 
         <div className="flex gap-2.5 items-center">
-          <HeaderBtn icon={<Briefcase size={14} />} label="Portfolio" onClick={() => setIsPortfolioOpen(true)} />
-          <HeaderBtn icon={<History size={14} />} label="Trades" onClick={() => setIsHistoryOpen(true)} />
+          <Link href="/portfolio">
+            <HeaderBtn icon={<Briefcase size={14} />} label="Portfolio" onClick={() => {}} />
+          </Link>
+          <Link href="/trades">
+            <HeaderBtn icon={<History size={14} />} label="Trades" onClick={() => {}} />
+          </Link>
           <HeaderBtn icon={<Plus size={14} />} label="New Trade" primary onClick={() => setIsModalOpen(true)} />
           <HeaderBtn icon={<RefreshCcw size={14} />} label="Refresh" onClick={() => { fetchTrades(); fetchStats(); }} />
         </div>
