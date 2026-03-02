@@ -1,5 +1,8 @@
+import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { api } from "./_generated/api";
+
+const http = httpRouter();
 
 export const signalWebhook = httpAction(async (ctx, request) => {
     const body = await request.json();
@@ -25,3 +28,11 @@ export const signalWebhook = httpAction(async (ctx, request) => {
         headers: { "Content-Type": "application/json" },
     });
 });
+
+http.route({
+    path: "/signalWebhook",
+    method: "POST",
+    handler: signalWebhook,
+});
+
+export default http;

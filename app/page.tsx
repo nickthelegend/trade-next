@@ -21,8 +21,8 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function Dashboard() {
-  const trades = useQuery(api.trades.list) || [];
-  const stats = useQuery(api.trades.getStats) || { total: 0, wins: 0, losses: 0, totalPnl: 0 };
+  const trades = (useQuery(api.trades.list) || []) as Trade[];
+  const stats = (useQuery(api.trades.getStats) || { total: 0, wins: 0, losses: 0, totalPnl: 0 }) as Stats;
 
   const updateStatus = useMutation(api.trades.updateStatus);
   const removeTrade = useMutation(api.trades.remove);
@@ -199,7 +199,7 @@ export default function Dashboard() {
   );
 }
 
-function StatDisplay({ label, value, subValue, subColor = "text-white/30", color = "text-white" }) {
+function StatDisplay({ label, value, subValue, subColor = "text-white/30", color = "text-white" }: { label: string; value: string; subValue: string; subColor?: string; color?: string }) {
   return (
     <div className="flex flex-col">
       <span className="text-[9px] text-[#4a6278] uppercase tracking-[2px] font-bold mb-1">{label}</span>
@@ -211,7 +211,7 @@ function StatDisplay({ label, value, subValue, subColor = "text-white/30", color
   );
 }
 
-function SidebarIcon({ icon, active = false }) {
+function SidebarIcon({ icon, active = false }: { icon: React.ReactNode; active?: boolean }) {
   return (
     <div className={cn(
       "w-12 h-12 rounded-xl flex items-center justify-center transition-all cursor-pointer group",
@@ -222,7 +222,7 @@ function SidebarIcon({ icon, active = false }) {
   );
 }
 
-function NavIcon({ icon }) {
+function NavIcon({ icon }: { icon: React.ReactNode }) {
   return (
     <button className="w-8 h-8 flex items-center justify-center text-[#4a6278] hover:text-[#00f2ff] transition-colors">
       {icon}
@@ -315,7 +315,7 @@ function PositionCard({ trade, pnl, onUpdate }: { trade: Trade; pnl: number; onU
   );
 }
 
-function ActionButton({ label, icon, color, onClick }) {
+function ActionButton({ label, icon, color, onClick }: { label: string; icon: React.ReactNode; color: 'emerald' | 'rose'; onClick: () => void }) {
   const colors = {
     emerald: "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-black border-emerald-500/20",
     rose: "bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-black border-rose-500/20"
@@ -335,7 +335,7 @@ function ActionButton({ label, icon, color, onClick }) {
   );
 }
 
-function PageBtn({ label, onClick, disabled }) {
+function PageBtn({ label, onClick, disabled }: { label: string; onClick: () => void; disabled: boolean }) {
   return (
     <button
       disabled={disabled}
@@ -347,7 +347,7 @@ function PageBtn({ label, onClick, disabled }) {
   );
 }
 
-function ViewToggle({ icon, label, active = false }) {
+function ViewToggle({ icon, label, active = false }: { icon: React.ReactNode; label: string; active?: boolean }) {
   return (
     <button className={cn(
       "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all",
@@ -359,7 +359,7 @@ function ViewToggle({ icon, label, active = false }) {
   );
 }
 
-function NewTradeModal({ onClose }) {
+function NewTradeModal({ onClose }: { onClose: () => void }) {
   const createTrade = useMutation(api.trades.create);
   const [formData, setFormData] = useState({
     symbol: '',
@@ -439,7 +439,7 @@ function NewTradeModal({ onClose }) {
   );
 }
 
-function InputGroup({ label, placeholder, value, onChange }) {
+function InputGroup({ label, placeholder, value, onChange }: { label: string; placeholder: string; value: string; onChange: (v: string) => void }) {
   return (
     <div className="space-y-1.5 flex-1">
       <label className="text-[10px] font-black text-[#4a6278] uppercase tracking-[3px]">{label}</label>
@@ -453,7 +453,7 @@ function InputGroup({ label, placeholder, value, onChange }) {
   );
 }
 
-function DirectionBtn({ active, label, sub, color, onClick }) {
+function DirectionBtn({ active, label, sub, color, onClick }: { active: boolean; label: string; sub: string; color: 'emerald' | 'rose'; onClick: () => void }) {
   const styles = {
     emerald: active ? "bg-emerald-500 text-black shadow-[0_0_30px_rgba(16,185,129,0.3)]" : "bg-white/5 text-white/30 border-white/5 hover:border-emerald-500/30",
     rose: active ? "bg-rose-500 text-black shadow-[0_0_30px_rgba(244,63,94,0.3)]" : "bg-white/5 text-white/30 border-white/5 hover:border-rose-500/30"
