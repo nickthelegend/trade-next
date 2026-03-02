@@ -1,83 +1,105 @@
-'use client';
+"use client";
 
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, ISeriesApi, CandlestickData, Time, CandlestickSeries, createSeriesMarkers } from 'lightweight-charts';
-import { Trade } from '@/types';
+import { createChart, ColorType, ISeriesApi, SeriesType } from 'lightweight-charts';
+import { Trade } from '../types';
 
-interface ChartProps {
-  trade: Trade;
-  livePrice?: number;
-}
-
-export default function TradingViewChart({ trade, livePrice }: ChartProps) {
+export default function TradingViewChart({ trade }: { trade: Trade }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
-  const seriesRef = useRef<ISeriesApi<'Candlestick'>>(null);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
+    const handleResize = () => {
+      chartRef.current?.applyOptions({ width: chartContainerRef.current?.clientWidth });
+    };
+
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#4a6278',
+        textColor: 'rgba(255, 255, 255, 0.4)',
+        fontSize: 10,
+        fontFamily: 'Inter, sans-serif',
       },
       grid: {
-        vertLines: { color: 'rgba(255,255,255,0.03)' },
-        horzLines: { color: 'rgba(255,255,255,0.03)' },
+        vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
+        horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
       },
-      width: chartContainerRef.current.clientWidth,
-      height: chartContainerRef.current.clientHeight,
+      rightPriceScale: {
+        borderVisible: false,
+        scaleMargins: { top: 0.2, bottom: 0.2 },
+      },
+      timeScale: {
+        borderVisible: false,
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      crosshair: {
+        vertLine: { color: 'rgba(59, 130, 246, 0.5)', width: 1, style: 2 },
+        horzLine: { color: 'rgba(59, 130, 246, 0.5)', width: 1, style: 2 },
+      },
+      handleScroll: false,
+      handleScale: false,
     });
 
-    const series = chart.addSeries(CandlestickSeries, {
-      upColor: '#10b981',
-      downColor: '#f43f5e',
-      borderVisible: false,
-      wickUpColor: '#10b981',
-      wickDownColor: '#f43f5e',
+    const series = chart.addAreaSeries({
+      lineColor: trade.direction === 'LONG' ? '#10b981' : '#f43f5e',
+      topColor: trade.direction === 'LONG' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)',
+      bottomColor: 'rgba(0, 0, 0, 0)',
+      lineWidth: 2,
     });
 
-    const data = generateMockData(trade);
+    // Generate some fake historical data around the entry for visualization
+    const data = [];
+    const entry = trade.entryLow;
+    const now = Math.floor(Date.now() / 1000);
+    const startTime = trade._creationTime ? Math.floor(trade._creationTime / 1000) : now - 3600;
+
+    for (let i = 0; i < 60; i++) {
+      const time = startTime + (i * 60);
+      const randomWalk = (Math.random() - 0.5) * (entry * 0.01);
+      data.push({
+        time: time as any,
+        value: entry + (trade.direction === 'LONG' ? i * (entry * 0.0001) : -i * (entry * 0.0001)) + randomWalk
+      });
+    }
     series.setData(data);
 
-    const entryTime = Math.floor(trade._creationTime / 1000) as Time;
-    createSeriesMarkers(series, [
-      {
-        time: entryTime,
-        position: 'inBar',
-        color: '#00f2ff',
-        shape: 'arrowUp',
-        text: 'ENTRY',
-        size: 1,
-      },
-    ]);
+    // Entry Line
+    series.createPriceLine({
+      price: trade.entryLow,
+      color: '#3b82f6',
+      lineWidth: 1,
+      lineStyle: 2,
+      axisLabelVisible: true,
+      title: 'ENTRY',
+    });
 
-    const drawLine = (price: number, color: string, title: string) => {
+    // TP Line
+    if (trade.takeProfits[0]) {
       series.createPriceLine({
-        price: price,
-        color: color,
+        price: trade.takeProfits[0],
+        color: '#10b981',
         lineWidth: 1,
-        lineStyle: 2,
+        lineStyle: 0,
         axisLabelVisible: true,
-        title: title,
+        title: 'TP1',
       });
-    };
+    }
 
-    drawLine(trade.entryLow, 'rgba(0,242,255,0.5)', 'Entry');
-    trade.takeProfits.forEach((tp, i) => drawLine(tp, '#10b981', `TP${i + 1}`));
-    drawLine(trade.stopLoss, '#f43f5e', 'SL');
+    // SL Line
+    series.createPriceLine({
+      price: trade.stopLoss,
+      color: '#f43f5e',
+      lineWidth: 1,
+      lineStyle: 0,
+      axisLabelVisible: true,
+      title: 'SL',
+    });
 
     chart.timeScale().fitContent();
-
     chartRef.current = chart;
-    seriesRef.current = series;
-
-    const handleResize = () => {
-      if (chartContainerRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-      }
-    };
 
     window.addEventListener('resize', handleResize);
 
@@ -85,27 +107,7 @@ export default function TradingViewChart({ trade, livePrice }: ChartProps) {
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [trade._id]);
+  }, [trade]);
 
   return <div ref={chartContainerRef} className="w-full h-full" />;
-}
-
-function generateMockData(trade: Trade): CandlestickData<Time>[] {
-  const data: CandlestickData<Time>[] = [];
-  const entryPrice = (trade.entryLow + (trade.entryHigh || trade.entryLow)) / 2;
-  let currentPrice = entryPrice * (trade.direction === 'LONG' ? 0.98 : 1.02);
-  const now = Math.floor(Date.now() / 1000);
-
-  for (let i = 60; i >= 0; i--) {
-    const time = (now - i * 3600) as Time;
-    const vol = entryPrice * 0.008;
-    const open = currentPrice;
-    const close = currentPrice + (Math.random() - 0.48) * vol;
-    const high = Math.max(open, close) + Math.random() * (vol * 0.5);
-    const low = Math.min(open, close) - Math.random() * (vol * 0.5);
-
-    data.push({ time, open, high, low, close });
-    currentPrice = close;
-  }
-  return data;
 }
