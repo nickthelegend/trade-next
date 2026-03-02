@@ -13,8 +13,8 @@ export const getStats = query({
   handler: async (ctx) => {
     const trades = await ctx.db.query("trades").collect();
     const total = trades.length;
-    const wins = trades.filter((t) => t.status === "success").length;
-    const losses = trades.filter((t) => t.status === "failed").length;
+    const wins = trades.filter((t) => t.status === "WON").length;
+    const losses = trades.filter((t) => t.status === "LOST").length;
     const totalPnl = trades.reduce((acc, curr) => acc + (curr.pnl || 0), 0);
     return { total, wins, losses, totalPnl };
   },
@@ -33,7 +33,7 @@ export const create = mutation({
   handler: async (ctx, args) => {
     return await ctx.db.insert("trades", {
       ...args,
-      status: "open",
+      status: "OPEN",
     });
   },
 });
