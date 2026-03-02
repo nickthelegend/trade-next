@@ -1,14 +1,23 @@
+import { Id } from "@/convex/_generated/dataModel";
+
 export interface Trade {
-  id: number;
+  _id: Id<"trades">;
+  _creationTime: number;
   symbol: string;
-  direction: 'LONG' | 'SHORT';
-  entry_low: number;
-  entry_high: number;
-  take_profits: number[];
-  stop_loss: number;
-  status: 'open' | 'success' | 'failed' | 'partial';
-  created_at: string;
-  closed_at?: string;
+  direction: string;
+  entryLow: number;
+  entryHigh?: number;
+  takeProfits: number[];
+  stopLoss: number;
+  status: string;
   pnl?: number;
-  notes?: string;
+  closedAt?: string;
+  channel?: string;
+}
+
+export interface Stats {
+  total: number;
+  wins: number;
+  losses: number;
+  totalPnl: number;
 }
