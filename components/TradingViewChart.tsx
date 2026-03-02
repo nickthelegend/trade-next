@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, ISeriesApi, SeriesType } from 'lightweight-charts';
+import {
+  createChart,
+  ColorType,
+  CandlestickSeries,
+  LineSeries,
+  createSeriesMarkers,
+  Time
+} from 'lightweight-charts';
 import { Trade } from '../types';
 
 export default function TradingViewChart({ trade }: { trade: Trade }) {
@@ -17,86 +24,99 @@ export default function TradingViewChart({ trade }: { trade: Trade }) {
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: 'rgba(255, 255, 255, 0.4)',
+        background: { type: ColorType.Solid, color: '#0d1117' },
+        textColor: '#4a6278',
         fontSize: 10,
-        fontFamily: 'Inter, sans-serif',
+        fontFamily: 'Space Mono, monospace',
       },
       grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
+        vertLines: { color: '#111820' },
+        horzLines: { color: '#111820' },
       },
       rightPriceScale: {
-        borderVisible: false,
-        scaleMargins: { top: 0.2, bottom: 0.2 },
+        borderColor: '#1e2a38',
+        scaleMargins: { top: 0.15, bottom: 0.15 },
       },
       timeScale: {
-        borderVisible: false,
+        borderColor: '#1e2a38',
         timeVisible: true,
-        secondsVisible: false,
       },
       crosshair: {
-        vertLine: { color: 'rgba(59, 130, 246, 0.5)', width: 1, style: 2 },
-        horzLine: { color: 'rgba(59, 130, 246, 0.5)', width: 1, style: 2 },
+        vertLine: { color: 'rgba(0, 229, 255, 0.4)', width: 1, style: 2 },
+        horzLine: { color: 'rgba(0, 229, 255, 0.4)', width: 1, style: 2 },
       },
-      handleScroll: false,
-      handleScale: false,
+      handleScroll: true,
+      handleScale: true,
     });
 
-    const series = chart.addAreaSeries({
-      lineColor: trade.direction === 'LONG' ? '#10b981' : '#f43f5e',
-      topColor: trade.direction === 'LONG' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)',
-      bottomColor: 'rgba(0, 0, 0, 0)',
-      lineWidth: 2,
+    const candleSeries = chart.addSeries(CandlestickSeries, {
+      upColor: '#00ff88',
+      downColor: '#ff3a5c',
+      borderVisible: false,
+      wickUpColor: '#00ff88',
+      wickDownColor: '#ff3a5c',
     });
 
-    // Generate some fake historical data around the entry for visualization
-    const data = [];
-    const entry = trade.entryLow;
+    // Generate Mock Data for V5
+    const data: { time: Time; open: number; high: number; low: number; close: number }[] = [];
+    const entry = trade.entryLow > 0 ? trade.entryLow : 100; // Fallback to 100 if entry is 0 to keep chart visible
     const now = Math.floor(Date.now() / 1000);
-    const startTime = trade._creationTime ? Math.floor(trade._creationTime / 1000) : now - 3600;
+    const startTime = (trade._creationTime ? Math.floor(trade._creationTime / 1000) : now - 3600 * 24) as number;
 
-    for (let i = 0; i < 60; i++) {
-      const time = startTime + (i * 60);
-      const randomWalk = (Math.random() - 0.5) * (entry * 0.01);
-      data.push({
-        time: time as any,
-        value: entry + (trade.direction === 'LONG' ? i * (entry * 0.0001) : -i * (entry * 0.0001)) + randomWalk
-      });
+    let currentPrice = entry * (trade.direction === 'LONG' ? 0.98 : 1.02);
+    const steps = 60;
+    const timeStep = 3600; // 1 hour steps
+
+    for (let i = 0; i < steps; i++) {
+      const time = (startTime + (i * timeStep)) as Time;
+      const vol = entry * 0.008;
+      const open = currentPrice;
+      const close = open + (Math.random() - 0.48) * vol;
+      const high = Math.max(open, close) + vol * 0.5;
+      const low = Math.min(open, close) - vol * 0.5;
+
+      data.push({ time, open, high, low, close });
+      currentPrice = close;
     }
-    series.setData(data);
 
-    // Entry Line
-    series.createPriceLine({
-      price: trade.entryLow,
-      color: '#3b82f6',
-      lineWidth: 1,
-      lineStyle: 2,
-      axisLabelVisible: true,
-      title: 'ENTRY',
-    });
+    candleSeries.setData(data);
 
-    // TP Line
-    if (trade.takeProfits[0]) {
-      series.createPriceLine({
-        price: trade.takeProfits[0],
-        color: '#10b981',
+    // Entry Markers using createSeriesMarkers (V5 Syntax)
+    const entryTime = (trade._creationTime ? Math.floor(trade._creationTime / 1000) : data[30].time) as Time;
+    createSeriesMarkers(candleSeries, [
+      {
+        time: entryTime,
+        position: 'inBar',
+        color: '#ffd54f',
+        shape: 'arrowUp',
+        text: 'ENTRY',
+        size: 1,
+      },
+    ]);
+
+    // Price Lines
+    const drawLine = (price: number, color: string, style: number, title: string) => {
+      const line = chart.addSeries(LineSeries, {
+        color: color,
         lineWidth: 1,
-        lineStyle: 0,
-        axisLabelVisible: true,
-        title: 'TP1',
+        lineStyle: style,
+        lastValueVisible: true,
+        title: title,
+        priceLineVisible: false,
       });
+      line.setData(data.map(d => ({ time: d.time, value: price })));
+    };
+
+    drawLine(trade.entryLow, 'rgba(255, 213, 79, 0.5)', 2, 'Entry');
+    if (trade.entryHigh && trade.entryHigh !== trade.entryLow) {
+      drawLine(trade.entryHigh, 'rgba(255, 213, 79, 0.5)', 2, 'Entry');
     }
 
-    // SL Line
-    series.createPriceLine({
-      price: trade.stopLoss,
-      color: '#f43f5e',
-      lineWidth: 1,
-      lineStyle: 0,
-      axisLabelVisible: true,
-      title: 'SL',
+    trade.takeProfits.forEach((tp, i) => {
+      drawLine(tp, `rgba(0, 255, 136, ${0.3 + i * 0.1})`, 3, `TP${i + 1}`);
     });
+
+    drawLine(trade.stopLoss, 'rgba(255, 58, 92, 0.7)', 2, 'SL');
 
     chart.timeScale().fitContent();
     chartRef.current = chart;
