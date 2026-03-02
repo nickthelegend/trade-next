@@ -35,11 +35,15 @@ export default function TradingViewChart({ trade }: { trade: Trade }) {
       },
       rightPriceScale: {
         borderColor: '#1e2a38',
-        scaleMargins: { top: 0.15, bottom: 0.15 },
+        scaleMargins: { top: 0.05, bottom: 0.05 }, // Taller candles
+        autoScale: true,
       },
       timeScale: {
         borderColor: '#1e2a38',
         timeVisible: true,
+        barSpacing: 20, // Aggressive horizontal stretch
+        rightOffset: 15,
+        fixLeftEdge: true,
       },
       crosshair: {
         vertLine: { color: 'rgba(0, 229, 255, 0.4)', width: 1, style: 2 },
@@ -63,23 +67,26 @@ export default function TradingViewChart({ trade }: { trade: Trade }) {
     const now = Math.floor(Date.now() / 1000);
     const startTime = (trade._creationTime ? Math.floor(trade._creationTime / 1000) : now - 3600 * 24) as number;
 
-    let currentPrice = entry * (trade.direction === 'LONG' ? 0.98 : 1.02);
-    const steps = 60;
+    let currentPrice = entry * (trade.direction === 'LONG' ? 0.95 : 1.05);
+    const steps = 120; // More history
     const timeStep = 3600; // 1 hour steps
 
     for (let i = 0; i < steps; i++) {
       const time = (startTime + (i * timeStep)) as Time;
       const vol = entry * 0.008;
       const open = currentPrice;
-      const close = open + (Math.random() - 0.48) * vol;
-      const high = Math.max(open, close) + vol * 0.5;
-      const low = Math.min(open, close) - vol * 0.5;
+      const close = open + (Math.random() - 0.48) * vol * 2.5; // More volatility for "taller" candles
+      const high = Math.max(open, close) + vol * 0.8;
+      const low = Math.min(open, close) - vol * 0.8;
 
       data.push({ time, open, high, low, close });
       currentPrice = close;
     }
 
     candleSeries.setData(data);
+
+    // Auto-fit content to the container
+    chart.timeScale().fitContent();
 
     // Entry Markers using createSeriesMarkers (V5 Syntax)
     const entryTime = (trade._creationTime ? Math.floor(trade._creationTime / 1000) : data[30].time) as Time;
