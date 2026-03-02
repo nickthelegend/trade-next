@@ -20,7 +20,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Trade, Stats } from "../types";
 import TradingViewChart from "../components/TradingViewChart";
-import { cn } from "@/lib/utils";
+import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Real-time Price monitoring using Binance Public API
@@ -56,6 +56,8 @@ function useCurrentPrice(symbol: string, initialPrice: number) {
 export default function Dashboard() {
   const allTrades = (useQuery(api.trades.list) || []) as Trade[];
   const stats = (useQuery(api.trades.getStats) || { total: 0, wins: 0, losses: 0, totalPnl: 0 }) as Stats;
+  const activeTrades = allTrades.filter(t => t.status === "OPEN");
+  const closedTrades = allTrades.filter(t => t.status !== "OPEN");
   const updateStatus = useMutation(api.trades.updateStatus);
   const removeTrade = useMutation(api.trades.remove);
 
@@ -65,9 +67,8 @@ export default function Dashboard() {
   const [showPortfolioModal, setShowPortfolioModal] = useState(false);
 
   const perPage = 4;
-  const totalPages = Math.ceil(allTrades.length / perPage) || 1;
-  const currentTrades = allTrades.slice((page - 1) * perPage, page * perPage);
-  const activeTrades = allTrades.filter(t => t.status === "OPEN");
+  const totalPages = Math.ceil(activeTrades.length / perPage) || 1;
+  const currentTrades = activeTrades.slice((page - 1) * perPage, page * perPage);
 
   // Real Global Unrealized P&L Calculation
   const [unrealizedTotal, setUnrealizedTotal] = useState(0);
@@ -201,18 +202,22 @@ export default function Dashboard() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-[#1e2a38] scrollbar-track-transparent">
-            {allTrades.length === 0 ? (
+            {activeTrades.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-[#4a6278] text-[11px] tracking-widest gap-2 opacity-50 uppercase">
                 <span className="text-3xl">◇</span>
-                NO POSITIONS
+                NO ACTIVE POSITIONS
               </div>
             ) : (
-              allTrades.map((t) => (
+              activeTrades.map((t) => (
                 <PositionCard
                   key={t._id}
                   trade={t}
                   onUpdate={(status, pnl) => updateStatus({ id: t._id, status, pnl })}
-                  onDelete={() => removeTrade({ id: t._id })}
+                  onDelete={() => {
+                    if (confirm("Permanently delete this trade from database? (Effect: Will NOT show in stats/ledger)")) {
+                      removeTrade({ id: t._id });
+                    }
+                  }}
                 />
               ))
             )}
@@ -224,7 +229,7 @@ export default function Dashboard() {
       <AnimatePresence>
         {showNewTradeModal && <NewTradeModal onClose={() => setShowNewTradeModal(false)} />}
         {showHistoryModal && <HistoryModal trades={allTrades} onClose={() => setShowHistoryModal(false)} />}
-        {showPortfolioModal && <PortfolioModal stats={stats} onClose={() => setShowPortfolioModal(false)} />}
+        {showPortfolioModal && <PortfolioModal stats={stats} closedTrades={closedTrades} onClose={() => setShowPortfolioModal(false)} />}
       </AnimatePresence>
     </div>
   );
@@ -523,24 +528,76 @@ function HistoryModal({ trades, onClose }: { trades: Trade[]; onClose: () => voi
   );
 }
 
-function PortfolioModal({ stats, onClose }: { stats: Stats; onClose: () => void }) {
+function PortfolioModal({ stats, closedTrades, onClose }: { stats: Stats; closedTrades: Trade[]; onClose: () => void }) {
   const winRate = stats.total > 0 ? ((stats.wins / stats.total) * 100).toFixed(1) : 0;
+
   return (
-    <ModalBase title="Portfolio Analytics" onClose={onClose}>
-      <div className="space-y-4">
-        <SummaryBox label="Total Amount of Trades" value={stats.total} color="text-[#00e5ff]" />
-        <SummaryBox label="Total Portfolio P&L" value={`${stats.totalPnl >= 0 ? '+' : ''}${stats.totalPnl.toFixed(2)}%`} color={stats.totalPnl >= 0 ? "text-[#00ff88]" : "text-[#ff3a5c]"} />
-        <SummaryBox label="Win Rate" value={`${winRate}%`} color="text-[#00ff88]" />
+    <ModalBase title="Portfolio Analytics" onClose={onClose} large>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <SummaryBox label="Total Trades" value={stats.total} color="text-[#c9d8e8]" />
+            <SummaryBox label="Win Rate" value={`${winRate}%`} color="text-[#00ff88]" />
+          </div>
+          <SummaryBox
+            label="Realized P&L Growth"
+            value={`${stats.totalPnl >= 0 ? '+' : ''}${stats.totalPnl.toFixed(2)}%`}
+            color={stats.totalPnl >= 0 ? "text-[#00ff88]" : "text-[#ff3a5c]"}
+            large
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <SummaryBox label="Total Wins" value={stats.wins} color="text-[#00ff88]" />
+            <SummaryBox label="Total Losses" value={stats.losses} color="text-[#ff3a5c]" />
+          </div>
+        </div>
+
+        <div className="flex flex-col">
+          <h4 className="text-[10px] text-[#4a6278] uppercase tracking-[3px] font-bold mb-4 border-b border-[#1e2a38] pb-2 font-['Syne']">CLOSED POSITIONS ANALYTICS</h4>
+          <div className="flex-1 overflow-y-auto max-h-[300px] space-y-2 pr-1 scrollbar-thin scrollbar-thumb-[#1e2a38] scrollbar-track-transparent">
+            {closedTrades.length === 0 ? (
+              <div className="h-40 flex items-center justify-center text-[#4a6278] text-[9px] uppercase tracking-widest opacity-40">No closed trades yet</div>
+            ) : (
+              closedTrades.slice(0, 10).map((t, i) => (
+                <div key={i} className="bg-[#111820] border border-[#1e2a38] p-3 flex items-center justify-between group hover:border-[#00e5ff] transition-all">
+                  <div>
+                    <div className="text-[11px] font-bold tracking-widest">{t.symbol}</div>
+                    <div className="text-[8px] text-[#4a6278] items-center flex gap-2 mt-0.5">
+                      <span className={t.direction === 'LONG' ? "text-[#00ff88]" : "text-[#ff3a5c]"}>{t.direction}</span>
+                      <span>•</span>
+                      <span>{new Date(t._creationTime).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className={cn(
+                      "text-[12px] font-black font-['Syne']",
+                      (t.pnl || 0) > 0 ? "text-[#00ff88]" : "text-[#ff3a5c]"
+                    )}>
+                      {(t.pnl || 0) >= 0 ? '+' : ''}{(t.pnl || 0).toFixed(2)}%
+                    </div>
+                    <div className="text-[8px] text-[#4a6278] tracking-widest uppercase">REALIZED</div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </ModalBase>
   );
 }
 
-function SummaryBox({ label, value, color }: { label: string; value: string | number; color: string }) {
+function SummaryBox({ label, value, color, large }: { label: string; value: string | number; color: string; large?: boolean }) {
   return (
-    <div className="bg-[#111820] border border-[#1e2a38] p-4 text-center">
-      <div className="text-[9px] text-[#4a6278] uppercase tracking-[2px] mb-1.5">{label}</div>
-      <div className={cn("text-2xl font-bold tracking-tighter", color)}>{value}</div>
+    <div className={cn(
+      "bg-[#111820]/40 border border-[#1e2a38] transition-all hover:bg-[#111820] p-4",
+      large ? "py-6" : "py-4"
+    )}>
+      <div className="text-[9px] text-[#4a6278] uppercase tracking-[2px] mb-2">{label}</div>
+      <div className={cn(
+        "font-black tracking-tighter font-['Syne']",
+        color,
+        large ? "text-4xl" : "text-2xl"
+      )}>{value}</div>
     </div>
   );
 }
